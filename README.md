@@ -1,85 +1,110 @@
-# LEGAL RAG
+# ⚖️ Legal RAG
 
-## Evidence-Grounded Legal RAG System
+## Evidence-Grounded Legal Question Answering System
 
-LEGAL RAG is a **Retrieval-Augmented Generation (RAG) system for legal document analysis and question answering**.
+**Legal RAG** is a Retrieval-Augmented Generation (RAG) system designed for **Indian legal document analysis and question answering**.
 
-It combines semantic search, BM25 lexical retrieval, Reciprocal Rank Fusion (RRF), cross-encoder reranking, context expansion, and Gemini-based generation to produce answers grounded in retrieved legal documents.
+The system combines **semantic retrieval, BM25 lexical search, Reciprocal Rank Fusion (RRF), cross-encoder reranking, context expansion, and Google Gemini** to generate answers grounded in retrieved legal documents.
 
-The current knowledge base contains the **Bharatiya Nyaya Sanhita (BNS), Bharatiya Nagarik Suraksha Sanhita (BNSS), and Bharatiya Sakshya Adhiniyam (BSA)**.
+The current knowledge base focuses on:
+
+* Bharatiya Nyaya Sanhita (BNS), 2023
+* Bharatiya Nagarik Suraksha Sanhita (BNSS), 2023
+* Bharatiya Sakshya Adhiniyam (BSA), 2023
+
+> **Retrieve first. Generate second.**
 
 ---
 
 ## 🎯 Project Objective
 
-Large language models can generate fluent answers but may produce unsupported or fabricated information.
+Large Language Models can generate fluent responses but may sometimes produce information that is unsupported by the source documents.
 
-Cognivault addresses this problem by retrieving relevant passages from a controlled legal document collection and supplying those passages to the language model as evidence.
+Legal RAG addresses this problem by retrieving relevant passages from a controlled collection of Indian legal documents and providing those passages to the language model as evidence.
 
-The system follows the principle:
+The system is designed to:
 
-> **Retrieve first. Generate second.**
+* Retrieve relevant legal provisions
+* Combine semantic and keyword-based search
+* Improve retrieval using reranking
+* Provide surrounding legal context
+* Generate evidence-grounded answers
+* Identify the source of the retrieved information
+* Reduce unsupported or hallucinated responses
 
-Instead of asking the LLM to answer from its general knowledge, Cognivault provides retrieved document evidence and instructs the model to ground its response in that evidence.
-
----
-
-## 🧠 System Architecture
+The basic workflow is:
 
 ```text
-                    LEGAL DOCUMENTS
-                 BNS / BNSS / BSA
-                         │
-                         ▼
-                PDF Text Extraction
-                         │
-                         ▼
-                  Text Cleaning
-                         │
-                         ▼
-              Continuous Chunking
-                         │
-                         ▼
-                 Sentence Embeddings
-                         │
-                         ▼
-                    ChromaDB
-                         │
-                         │
-            ┌────────────┴────────────┐
-            ▼                         ▼
-     Semantic Retrieval          BM25 Retrieval
-            │                         │
-            └────────────┬────────────┘
-                         ▼
-                  RRF Fusion
-                   Top 50
-                         │
-                         ▼
-               Cross-Encoder
-                  Reranking
-                   Top 5
-                         │
-                         ▼
-               Context Expansion
-                         │
-                         ▼
-                  Gemini LLM
-                         │
-                         ▼
-              Grounded Legal Answer
-                         │
-                         ▼
-              Evidence + Citations
+User Question
+      ↓
+Retrieve Relevant Evidence
+      ↓
+Rank and Filter Evidence
+      ↓
+Expand Context
+      ↓
+Generate Answer
+      ↓
+Provide Sources
 ```
 
 ---
 
-## 🔎 Retrieval Pipeline
+# 🧠 System Architecture
 
-Cognivault uses a multi-stage retrieval architecture.
+```text
+                    LEGAL DOCUMENTS
+                   BNS / BNSS / BSA
+                          │
+                          ▼
+                 PDF Text Extraction
+                          │
+                          ▼
+                    Text Cleaning
+                          │
+                          ▼
+                 Document Chunking
+                          │
+                          ▼
+                 Sentence Embeddings
+                          │
+                          ▼
+                      ChromaDB
+                          │
+              ┌───────────┴───────────┐
+              ▼                       ▼
+      Semantic Retrieval         BM25 Retrieval
+              │                       │
+              └───────────┬───────────┘
+                          ▼
+                    RRF Fusion
+                     Top 50
+                          │
+                          ▼
+                 Cross-Encoder
+                   Reranking
+                     Top 5
+                          │
+                          ▼
+                 Context Expansion
+                          │
+                          ▼
+                     Gemini LLM
+                          │
+                          ▼
+              Grounded Legal Answer
+                          │
+                          ▼
+                  Evidence + Sources
+```
 
-### 1. Semantic Retrieval
+---
+
+# 🔎 Retrieval Pipeline
+
+Legal RAG uses a **multi-stage hybrid retrieval pipeline**.
+
+## 1. Semantic Retrieval
 
 Legal document chunks are converted into vector embeddings using:
 
@@ -87,13 +112,17 @@ Legal document chunks are converted into vector embeddings using:
 all-MiniLM-L6-v2
 ```
 
-The embeddings are stored in ChromaDB and used for semantic similarity search.
+The embeddings are stored in **ChromaDB** and used to retrieve documents based on semantic similarity.
 
-### 2. BM25 Retrieval
+This allows the system to find relevant passages even when the wording of the user's question does not exactly match the wording in the legal document.
 
-A BM25 lexical retriever searches the complete legal corpus using keyword-based matching.
+---
 
-This helps retrieve passages containing important exact terms such as:
+## 2. BM25 Lexical Retrieval
+
+A BM25-based retriever performs keyword-based searching over the legal corpus.
+
+This is useful for legal queries containing specific terms such as:
 
 ```text
 Section 35
@@ -103,19 +132,29 @@ electronic record
 attempt to murder
 ```
 
-### 3. Reciprocal Rank Fusion
+BM25 complements semantic retrieval by ensuring that important legal terminology and exact phrases are not overlooked.
 
-Semantic and BM25 rankings are combined using **Reciprocal Rank Fusion (RRF)**.
+---
 
-The current pipeline retrieves:
+## 3. Reciprocal Rank Fusion (RRF)
+
+The results from semantic retrieval and BM25 retrieval are combined using:
 
 ```text
-Top 50 candidates
+Reciprocal Rank Fusion (RRF)
 ```
 
-before reranking.
+The current pipeline produces:
 
-### 4. Cross-Encoder Reranking
+```text
+Top 50 candidate chunks
+```
+
+These candidates are then passed to the reranking stage.
+
+---
+
+## 4. Cross-Encoder Reranking
 
 The retrieved candidates are reranked using:
 
@@ -123,33 +162,47 @@ The retrieved candidates are reranked using:
 cross-encoder/ms-marco-MiniLM-L-6-v2
 ```
 
-The current pipeline selects the top:
+The reranker evaluates the relationship between the user's question and each retrieved passage.
+
+The system then selects:
 
 ```text
-5 evidence chunks
+Top 5 evidence chunks
 ```
 
-### 5. Context Expansion
-
-Neighboring chunks are added around the highest-ranked result to provide additional surrounding context.
-
-### 6. Grounded Generation
-
-The retrieved evidence is supplied to Gemini.
-
-The model is instructed to:
-
-* use only supplied evidence
-* avoid unsupported claims
-* distinguish law from inference
-* cite the supplied document pages
-* explicitly state when evidence is insufficient
+for the generation stage.
 
 ---
 
-## 📚 Current Legal Corpus
+## 5. Context Expansion
 
-The current repository contains documents corresponding to:
+Legal information can depend on surrounding sections or paragraphs.
+
+Therefore, the system expands the selected evidence by retrieving neighboring chunks around the highest-ranked result.
+
+This provides the language model with additional context instead of relying on an isolated passage.
+
+---
+
+## 6. Grounded Generation
+
+The retrieved evidence is supplied to **Google Gemini**.
+
+The generation process is designed to:
+
+* Use the supplied evidence
+* Avoid unsupported claims
+* Distinguish legal information from inference
+* Reference the retrieved document sources
+* State when sufficient evidence is not available
+
+This creates an evidence-grounded answer rather than a response based only on the model's general knowledge.
+
+---
+
+# 📚 Legal Knowledge Base
+
+The current knowledge base contains the following major legal documents:
 
 | Document                                        | Purpose                  |
 | ----------------------------------------------- | ------------------------ |
@@ -157,25 +210,25 @@ The current repository contains documents corresponding to:
 | Bharatiya Nagarik Suraksha Sanhita (BNSS), 2023 | Criminal procedure       |
 | Bharatiya Sakshya Adhiniyam (BSA), 2023         | Law of evidence          |
 
-The current processed corpus contains:
+The current processed corpus contains approximately:
 
 ```text
-Total chunks: 1,000
+1,000 chunks
 ```
 
-The generated processed JSON files and ChromaDB database are intentionally excluded from Git and can be regenerated locally.
+Generated processed files and the local ChromaDB database are excluded from Git and can be regenerated locally.
 
 ---
 
-## 🧪 Example
+# 🧪 Example
 
-### Question
+### User Question
 
 ```text
 What is the charge for attempt to murder?
 ```
 
-### Cognivault response structure
+### Response Structure
 
 ```text
 ANSWER
@@ -194,54 +247,62 @@ SOURCES
 ...
 ```
 
-The system successfully retrieved relevant BNS provisions concerning attempt to murder and generated a source-grounded response using the retrieved evidence.
+The system retrieves relevant legal provisions and uses the retrieved evidence to construct the response.
 
 ---
 
-## 🛠️ Technology Stack
+# 🛠️ Technology Stack
 
-### Programming
+## Programming
 
-* Python
+* Python 3.12
 
-### Document Processing
+## Document Processing
 
 * PyMuPDF
 
-### Retrieval
+## Embeddings
+
+* Sentence Transformers
+* `all-MiniLM-L6-v2`
+
+## Vector Database
 
 * ChromaDB
-* Sentence Transformers
-* BM25
-* Reciprocal Rank Fusion
 
-### Reranking
+## Retrieval
+
+* Semantic Search
+* BM25
+* Reciprocal Rank Fusion (RRF)
+
+## Reranking
 
 * Cross-Encoder
 * `cross-encoder/ms-marco-MiniLM-L-6-v2`
 
-### Generation
+## Generation
 
 * Google Gemini
-* Gemini Interactions API
+* Gemini API
 
-### Environment
+## Environment
 
 * Conda
 * Python 3.12
 
 ---
 
-## 📁 Project Structure
+# 📁 Project Structure
 
 ```text
-cognivault/
+legal-rag-system/
 │
 ├── data/
 │   └── documents/
 │       ├── BNS2023.pdf
-│       ├── 250884_2_english_01042024.pdf
-│       └── 250882_english_01042024_0.pdf
+│       ├── BNSS.pdf
+│       └── BSA.pdf
 │
 ├── src/
 │   ├── __init__.py
@@ -261,36 +322,37 @@ cognivault/
 │   ├── evaluate_retrieval.py
 │   └── evaluate_reranking.py
 │
-├── data/processed/
-│   └── Generated chunk files
+├── data/
+│   └── processed/
 │
 ├── chroma_db/
-│   └── Local vector database
 │
 ├── requirements.txt
 ├── .gitignore
 └── README.md
 ```
 
+> File names may vary depending on the current implementation of the project.
+
 ---
 
-## ⚙️ Installation
+# ⚙️ Installation
 
-Clone the repository:
+## 1. Clone the Repository
 
 ```bash
-git clone https://github.com/JEFFIN-alt/cognivault.git
-cd cognivault
+git clone <YOUR-GITHUB-REPOSITORY-URL>
+cd legal-rag-system
 ```
 
-Create the Conda environment:
+## 2. Create the Conda Environment
 
 ```bash
 conda create -n ai-lab python=3.12
 conda activate ai-lab
 ```
 
-Install dependencies:
+## 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -298,29 +360,37 @@ pip install -r requirements.txt
 
 ---
 
-## 🔑 Gemini API Key
+# 🔑 Gemini API Key
 
-Cognivault requires a Gemini API key for answer generation.
+Legal RAG uses a Gemini API key for answer generation.
 
-Set the key as an environment variable:
+### Linux / macOS
 
 ```bash
 export GEMINI_API_KEY="YOUR_API_KEY"
 ```
 
-Verify that it is available:
+### Windows PowerShell
+
+```powershell
+$env:GEMINI_API_KEY="YOUR_API_KEY"
+```
+
+Verify that the key is available:
 
 ```bash
 python -c "import os; print(bool(os.getenv('GEMINI_API_KEY')))"
 ```
 
-The API key should **never be committed to GitHub**.
+**Never commit your API key to GitHub.**
+
+Use a `.env` file or environment variable and make sure it is included in `.gitignore`.
 
 ---
 
-## ▶️ Running Cognivault
+# ▶️ Running the Project
 
-### Step 1 — Process documents
+## Step 1 — Process Legal Documents
 
 Run the document processing pipeline:
 
@@ -328,92 +398,118 @@ Run the document processing pipeline:
 python src/chunker.py
 ```
 
-This extracts, cleans, and chunks the PDF documents.
+This stage extracts text from the legal PDFs, cleans the content, and creates document chunks.
 
-### Step 2 — Build the vector index
+---
+
+## Step 2 — Build the Vector Index
+
+Generate embeddings and store them in ChromaDB:
+
+```bash
+python src/indexer.py
+```
+
+If required on your system, limit the number of computational threads:
 
 ```bash
 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 python src/indexer.py
 ```
 
-This generates embeddings and stores them in ChromaDB.
+---
 
-### Step 3 — Run Cognivault
+## Step 3 — Run Legal RAG
+
+Start the complete RAG pipeline:
 
 ```bash
-OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 python -m src.pipeline
+python -m src.pipeline
 ```
 
-The system will prompt:
+The application will prompt for a legal question.
 
 ```text
-Ask Cognivault (type 'exit' to quit):
+Ask Legal RAG (type 'exit' to quit):
 ```
 
-Enter a legal question and Cognivault will retrieve, rerank, expand, and generate an evidence-grounded response.
-
----
-
-## 📊 Current Validation
-
-The RAG pipeline has been tested through its complete execution path:
+Enter a question and the system will:
 
 ```text
-PDF
- ↓
-Chunking
- ↓
-Embedding
- ↓
-Vector Index
- ↓
+Question
+   ↓
 Semantic Retrieval
- ↓
+   +
 BM25 Retrieval
- ↓
-RRF
- ↓
+   ↓
+RRF Fusion
+   ↓
 Cross-Encoder Reranking
- ↓
+   ↓
 Context Expansion
- ↓
-Gemini Generation
+   ↓
+Gemini
+   ↓
+Grounded Answer
 ```
-
-A retrieval test over the legal corpus successfully identified relevant BNSS material for questions concerning arrest procedures.
-
-A subsequent end-to-end test successfully retrieved BNS material concerning **attempt to murder** and generated a structured response containing:
-
-* Answer
-* Law Says
-* Case Document Says
-* Inference
-* Sources
 
 ---
 
-## 🚧 Current Limitations
+# 📊 Pipeline Validation
 
-Cognivault is currently a **research prototype / MVP**.
+The complete RAG pipeline has been tested through the following stages:
+
+```text
+PDF Documents
+      ↓
+Text Extraction
+      ↓
+Cleaning
+      ↓
+Chunking
+      ↓
+Embedding
+      ↓
+Vector Index
+      ↓
+Semantic Retrieval
+      ↓
+BM25 Retrieval
+      ↓
+RRF Fusion
+      ↓
+Cross-Encoder Reranking
+      ↓
+Context Expansion
+      ↓
+Gemini Generation
+      ↓
+Grounded Legal Response
+```
+
+The retrieval pipeline has been tested with legal questions involving areas such as arrest procedures and criminal law provisions.
+
+---
+
+# 🚧 Current Limitations
+
+Legal RAG is currently an **academic/research prototype**.
 
 Current limitations include:
 
-* The corpus is currently limited to three principal legal documents.
-* Case-specific document ingestion is not yet implemented.
-* The current reranker is a general passage-ranking model rather than an Indian-law-specific reranker.
-* Context expansion currently focuses on the highest-ranked retrieved result.
-* Retrieval evaluation is currently limited and should be expanded with a larger manually verified benchmark.
-* Legal provisions should be verified against the applicable official and current version before real-world use.
+* The knowledge base is currently limited to selected Indian legal documents.
+* Case-specific document ingestion is still under development.
+* The current reranker is a general-purpose passage-ranking model.
+* Context expansion is currently focused on the highest-ranked retrieval result.
+* Retrieval evaluation can be improved using a larger manually verified benchmark.
+* Legal information should always be verified against the latest authoritative source before real-world use.
 
 ---
 
-## 🔮 Future Work
+# 🔮 Future Enhancements
 
-Planned extensions include:
+## 📄 Case Document Analysis
 
-### Case Document Analysis
-
-Support documents such as:
+Future versions can support documents such as:
 
 ```text
 FIRs
@@ -427,65 +523,101 @@ Contracts
 Evidence Documents
 ```
 
-### Legal Knowledge Expansion
+---
 
-Extend the knowledge base with:
+## ⚖️ Legal Knowledge Expansion
+
+The knowledge base can be extended to include:
 
 ```text
 Constitution of India
-Central and State Acts
+Central Acts
+State Acts
 Rules and Regulations
 Court Judgments
 Legal Commentaries
 ```
 
-### Improved Legal Retrieval
+---
 
-Future versions can explore:
+## 🧠 Improved Legal Retrieval
 
-* legal-domain embedding models
-* legal-specific rerankers
-* section-aware retrieval
-* citation-aware retrieval
-* metadata filtering
-* document versioning
+Possible improvements include:
 
-### User Interface
-
-A web interface can provide:
-
-* legal document upload
-* conversational querying
-* source inspection
-* page-level citations
-* evidence highlighting
-* case-document comparison
+* Legal-domain embedding models
+* Legal-specific rerankers
+* Section-aware retrieval
+* Citation-aware retrieval
+* Metadata filtering
+* Document versioning
+* Better chunking strategies
+* Retrieval evaluation benchmarks
 
 ---
 
-## ⚖️ Disclaimer
+## 🖥️ User Interface
 
-Cognivault is an **academic/research project intended for legal information retrieval and decision-support experimentation**.
+A future web interface can provide:
 
-It is not a substitute for professional legal advice, legal representation, or judicial determination.
-
-Users should independently verify legal information against authoritative and current legal sources before relying on it.
-
----
-
-## 👨‍💻 Author
-
-**JEFFIN-alt**
-
-B.Tech — Artificial Intelligence & Data Science
-
-GitHub:
-
-https://github.com/JEFFIN-alt
+* Legal document upload
+* Conversational legal querying
+* Source inspection
+* Page-level citations
+* Evidence highlighting
+* Document comparison
+* Search history
+* Structured legal summaries
 
 ---
 
-## 📄 License
+# ⚖️ Disclaimer
+
+Legal RAG is an **academic/research project** intended for experimentation with legal information retrieval and evidence-grounded question answering.
+
+It is **not a substitute for professional legal advice, legal representation, or judicial determination**.
+
+Users should independently verify legal information using authoritative and current legal sources before relying on it for real-world decisions.
+
+---
+
+# 👨‍💻 Author
+
+## Abhijith Arun
+
+**B.Tech — Artificial Intelligence and Data Science**
+
+Vimal Jyothi Engineering College
+
+### GitHub
+
+`github.com/ajaxnovember2003-art`
+
+### LinkedIn
+
+`linkedin.com/in/abhijitharun/`
+
+---
+
+# 📄 License
 
 License information will be added in a future version.
-::[Open Cognivault on GitHub](https://github.com/JEFFIN-alt/cognivault?utm_source=chatgpt.com)
+
+---
+
+## ⭐ Project
+
+**Legal RAG — Evidence-Grounded Legal Question Answering System**
+
+Built as an academic AI/ML project exploring:
+
+```text
+Retrieval-Augmented Generation
+        +
+Hybrid Information Retrieval
+        +
+Legal Document Processing
+        +
+LLM Grounding
+        +
+Evidence-Based Question Answering
+```

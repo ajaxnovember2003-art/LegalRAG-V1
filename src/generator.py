@@ -62,7 +62,7 @@ Chunk: {result['chunk_id']}
         )
 
         return f"""
-You are Cognivault Legal, an
+You are  Legal RAG , an
 evidence-grounded legal research assistant.
 
 Your task is to answer the user's question
