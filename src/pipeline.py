@@ -47,12 +47,13 @@ class Cognivault:
         # STEP 2: RERANKING
         # --------------------------------------------------
 
-        print("\n[2/4] Reranking evidence...")
+        exact_matches_count = len([c for c in candidates if c.get("exact_match")])
+        rerank_k = max(5, min(exact_matches_count, 8))
 
         reranked_results = self.reranker.rerank(
             question,
             candidates,
-            top_k=5
+            top_k=rerank_k
         )
 
         print(

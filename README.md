@@ -390,56 +390,50 @@ Use a `.env` file or environment variable and make sure it is included in `.giti
 
 # ▶️ Running the Project
 
-## Step 1 — Process Legal Documents
+## Option A — Web Application (FastAPI + React Frontend)
 
-Run the document processing pipeline:
+### 1. Launch the Backend API
+
+From the root project directory:
 
 ```bash
-python src/chunker.py
+python -m src.api
 ```
+The FastAPI server will start on `http://localhost:8000` (API documentation at `http://localhost:8000/docs`).
 
-This stage extracts text from the legal PDFs, cleans the content, and creates document chunks.
+### 2. Launch the React Frontend
+
+In a new terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open `http://localhost:5173` in your browser for the full evidence-grounded legal research UI with pipeline trace and statutory inspection.
 
 ---
 
-## Step 2 — Build the Vector Index
+## Option B — Terminal / CLI Interface
 
-Generate embeddings and store them in ChromaDB:
-
-```bash
-python src/indexer.py
-```
-
-If required on your system, limit the number of computational threads:
-
-```bash
-OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 python src/indexer.py
-```
-
----
-
-## Step 3 — Run Legal RAG
-
-Start the complete RAG pipeline:
+Start the command-line RAG pipeline directly:
 
 ```bash
 python -m src.pipeline
 ```
 
-The application will prompt for a legal question.
+The application will prompt for a legal question:
 
 ```text
 Ask Legal RAG (type 'exit' to quit):
 ```
 
-Enter a question and the system will:
+Enter a question and the system will execute:
 
 ```text
 Question
    ↓
-Semantic Retrieval
-   +
-BM25 Retrieval
+Semantic Retrieval + BM25 Retrieval
    ↓
 RRF Fusion
    ↓
@@ -553,22 +547,49 @@ Possible improvements include:
 * Better chunking strategies
 * Retrieval evaluation benchmarks
 
----
+## 🖥️ Modern Web Interface & Features
 
-## 🖥️ User Interface
+LegalRAG includes a full-featured, responsive React 19 + Tailwind CSS web application:
 
-A future web interface can provide:
-
-* Legal document upload
-* Conversational legal querying
-* Source inspection
-* Page-level citations
-* Evidence highlighting
-* Document comparison
-* Search history
-* Structured legal summaries
+* **Evidence-Grounded Legal Workspace**: Natural-language statutory queries, enter-to-submit, instant query chips, and active retrieval traces.
+* **Structured Grounded Synthesis**: Divided into Executive Summary, Statutory Provisions (Law Says), Legal Analysis & Elements, Exceptions & Provisos, and Limitations & Uncertainties.
+* **Citation & Grounding Verification Engine**: Multi-step verification assessing statutory existence, section confirmation, evidence containment, and Gazette version validity.
+* **950+ Statutory Sections Explorer**: Real-time keyword and section-number search across official Gazette chunks for BNS, BNSS, and BSA 2023.
+* **Historical Concordance & Transition Tables**: Side-by-side comparison between colonial statutes (IPC, CrPC, IEA) and enacted 2023 Sanhitas with correspondence classifications.
+* **Passage & Document Inspector**: Modal dialog to inspect verbatim Gazette passages, highlight keywords, and copy official citations.
+* **Persistent Research History & Bookmarks**: Local history with timestamps, confirmation-based deletion, and session bookmarking.
+* **Interactive Pipeline Visualizer**: 3D Stack, 3D Tilt, and 2D Flow architectural modes explaining each RAG retrieval stage.
 
 ---
+
+## 🚀 Running the System
+
+### 1. Start the Backend API (FastAPI)
+
+```bash
+# Activate your conda / virtual environment (with dependencies installed)
+conda activate ai-lab
+
+# Start FastAPI server on port 8000
+python -m src.api
+```
+
+The API will be available at `http://localhost:8000`. Test health status at `http://localhost:8000/api/health`.
+
+### 2. Start the Frontend (Vite + React)
+
+```bash
+cd frontend
+
+# Install dependencies (if not already installed)
+npm install
+
+# Start development server on port 5173
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser.
+
 
 # ⚖️ Disclaimer
 

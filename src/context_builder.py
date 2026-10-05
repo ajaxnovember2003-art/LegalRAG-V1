@@ -1,67 +1,68 @@
-class ContextBuilder:
-    def __init__(self, chunks):
-        self.chunks = chunks
+"""
+Context Expansion & Statutory Window Builder for LegalRAG
 
-        self.lookup = {
+Expands retrieved provisions with neighbouring statutory chunks to ensure
+definitions, subsections, provisos, and explanations are not truncated,
+while preventing Table of Contents (TOC) pollution into operative context.
+"""
+
+from typing import List, Dict, Tuple, Optional
+
+
+class ContextBuilder:
+
+    def __init__(self, chunks: List[Dict]):
+        self.chunks = chunks
+        self.lookup: Dict[Tuple[str, int], Dict] = {
             (chunk["source"], chunk["chunk_id"]): chunk
             for chunk in chunks
         }
 
-    def build(self, results, window=1):
+    def build(
+        self,
+        results: List[Dict],
+        window: int = 1
+    ) -> List[Dict]:
         if not results:
             return []
 
         expanded = []
+        seen = set()
 
-        # Primary retrieved results
+        # Step 1: Add primary retrieved results first
         for result in results:
-            expanded.append(result)
+            key = (result["source"], result["chunk_id"])
+            if key not in seen:
+                seen.add(key)
+                expanded.append(result)
 
-        # Expand around the highest-ranked result
-        primary = results[0]
+        # Step 2: Expand around top results (window expansion)
+        # Limit expansion to top 2 results to maintain context precision
+        for primary in results[:2]:
+            source = primary["source"]
+            chunk_id = primary["chunk_id"]
 
-        source = primary["source"]
-        chunk_id = primary["chunk_id"]
+            for offset in range(-window, window + 1):
+                if offset == 0:
+                    continue
 
-        for offset in range(-window, window + 1):
-            if offset == 0:
-                continue
+                nearby_id = chunk_id + offset
+                key = (source, nearby_id)
 
-            nearby_id = chunk_id + offset
-            key = (source, nearby_id)
+                if key in self.lookup and key not in seen:
+                    nearby = self.lookup[key]
 
-            if key in self.lookup:
-                nearby = self.lookup[key]
+                    # CRITICAL: Do NOT expand into Table of Contents or Index chunks!
+                    if nearby.get("is_toc", False):
+                        continue
 
-                expanded.append({
-                    "chunk_id": nearby["chunk_id"],
-                    "source": nearby["source"],
-                    "page": nearby.get("page"),
-                    "page_start": nearby.get(
-                        "page_start",
-                        nearby.get("page")
-                    ),
-                    "page_end": nearby.get(
-                        "page_end",
-                        nearby.get("page")
-                    ),
-                    "text": nearby["text"],
-                    "retrieval_score": primary.get(
-                        "retrieval_score", 0
-                    ),
-                    "rerank_score": primary.get(
-                        "rerank_score", 0
-                    )
-                })
+                    seen.add(key)
+                    expanded.append({
+                        **nearby,
+                        "retrieval_method": "context_window_expansion",
+                        "retrieval_score": primary.get("retrieval_score", 0),
+                        "rerank_score": primary.get("rerank_score", 0) - 0.5,
+                        "is_expanded_context": True,
+                    })
 
-        # Remove duplicates
-        unique = {}
-
-        for chunk in expanded:
-            key = (
-                chunk["source"],
-                chunk["chunk_id"]
-            )
-            unique[key] = chunk
-
-        return list(unique.values())
+        return expanded

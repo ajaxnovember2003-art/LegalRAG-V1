@@ -1,182 +1,90 @@
-from retriever import HybridRetriever
-from reranker import Reranker
+"""
+LegalRAG Cross-Encoder Reranking Benchmark
 
+Evaluates whether cross-encoder reranking prioritizes higher-quality legal statutory passages
+over raw hybrid retrieval candidate lists.
+"""
+
+from src.retriever import HybridRetriever
+from src.reranker import Reranker
 
 TOP_K = 5
-CANDIDATE_K = 10
+CANDIDATE_K = 15
 
-
-QUESTIONS = [
+LEGAL_RERANK_BENCHMARKS = [
     {
-        "question": "What is electric current?",
-        "expected_terms": [
-            "electric current",
-            "flow of electrons"
-        ]
+        "question": "What is the punishment for murder under BNS Section 103?",
+        "target_terms": ["103", "murder", "death"],
+        "statute": "BNS 2023",
     },
     {
-        "question": "What is Ohm's law?",
-        "expected_terms": [
-            "ohm",
-            "voltage",
-            "current",
-            "resistance"
-        ]
+        "question": "What is the procedure for Zero FIR under BNSS Section 173?",
+        "target_terms": ["173", "cognizable", "electronic"],
+        "statute": "BNSS 2023",
     },
     {
-        "question": "What factors affect the resistance of a conductor?",
-        "expected_terms": [
-            "length",
-            "area",
-            "resistance"
-        ]
+        "question": "How is electronic and digital record admissible under Bharatiya Sakshya Adhiniyam?",
+        "target_terms": ["electronic", "digital", "document"],
+        "statute": "BSA 2023",
     },
     {
-        "question": "What is electrical power?",
-        "expected_terms": [
-            "electric power",
-            "work",
-            "time"
-        ]
+        "question": "What are the rules for bail in non-bailable cases under Section 480 BNSS?",
+        "target_terms": ["480", "bail", "non-bailable"],
+        "statute": "BNSS 2023",
     },
     {
-        "question": "What is a DC circuit?",
-        "expected_terms": [
-            "d.c. circuit",
-            "direct current"
-        ]
+        "question": "What constitutes cheating under Section 318 BNS?",
+        "target_terms": ["318", "cheats", "dishonestly"],
+        "statute": "BNS 2023",
     },
-    {
-        "question": "What is electrical energy?",
-        "expected_terms": [
-            "electrical energy",
-            "power",
-            "time"
-        ]
-    },
-    {
-        "question": "What is resistivity?",
-        "expected_terms": [
-            "resistivity",
-            "resistance"
-        ]
-    },
-    {
-        "question": "What are the different types of electric current?",
-        "expected_terms": [
-            "steady current",
-            "varying current",
-            "alternating current"
-        ]
-    },
-    {
-        "question": "What is electric potential difference?",
-        "expected_terms": [
-            "potential difference",
-            "voltage"
-        ]
-    },
-    {
-        "question": "What is a series circuit?",
-        "expected_terms": [
-            "series circuit",
-            "current"
-        ]
-    }
 ]
 
 
-def check_result(results, expected_terms):
-
-    combined_text = " ".join(
-        result["text"]
-        for result in results
-    ).lower()
-
-    matched_terms = [
-        term
-        for term in expected_terms
-        if term.lower() in combined_text
-    ]
-
-    return matched_terms
+def score_relevance(text: str, target_terms: list) -> float:
+    text_lower = text.lower()
+    matches = sum(1 for term in target_terms if term.lower() in text_lower)
+    return matches / len(target_terms)
 
 
 def main():
-
-    print("=" * 70)
-    print("COGNIVAULT RERANKING BENCHMARK")
-    print("=" * 70)
-
-    print("\nInitializing hybrid retriever...")
+    print("Initializing HybridRetriever...")
     retriever = HybridRetriever()
 
-    print("\nInitializing reranker...")
+    print("Initializing Reranker...")
     reranker = Reranker()
 
-    passed = 0
-
-    for index, item in enumerate(
-        QUESTIONS,
-        start=1
-    ):
-
-        question = item["question"]
-
-        print("\n" + "-" * 70)
-        print(f"Question {index}: {question}")
-        print("-" * 70)
-
-        # Hybrid retrieval.
-        candidates = retriever.retrieve(
-            question,
-            top_k=CANDIDATE_K
-        )
-
-        # Cross-encoder reranking.
-        results = reranker.rerank(
-            question,
-            candidates,
-            top_k=TOP_K
-        )
-
-        matched_terms = check_result(
-            results,
-            item["expected_terms"]
-        )
-
-        if matched_terms:
-            passed += 1
-            status = "PASS"
-        else:
-            status = "FAIL"
-
-        pages = [
-            result["page"]
-            for result in results
-        ]
-
-        print(f"Status        : {status}")
-        print(f"Matched terms : {matched_terms}")
-        print(f"Retrieved pages: {pages}")
-
-        if results:
-            print(
-                f"Top result    : Page {results[0]['page']}"
-            )
-
-    accuracy = passed / len(QUESTIONS)
-
     print("\n" + "=" * 70)
-    print("FINAL RESULT")
+    print("LEGALRAG CROSS-ENCODER RERANKING BENCHMARK")
     print("=" * 70)
 
-    print(f"Questions : {len(QUESTIONS)}")
-    print(f"Passed    : {passed}")
-    print(f"Accuracy  : {accuracy:.2%}")
+    total_precision_gain = 0.0
 
-    print("\nPipeline:")
-    print("Semantic/BM25 → RRF → Cross-Encoder Reranker")
+    for idx, item in enumerate(LEGAL_RERANK_BENCHMARKS, start=1):
+        q = item["question"]
+        terms = item["target_terms"]
+
+        # 1. Retrieve candidates
+        candidates = retriever.search(q, top_k=CANDIDATE_K)
+        initial_top = candidates[:TOP_K]
+        initial_score = sum(score_relevance(c["text"], terms) for c in initial_top) / TOP_K
+
+        # 2. Rerank candidates
+        reranked = reranker.rerank(q, candidates, top_k=TOP_K)
+        reranked_score = sum(score_relevance(r["text"], terms) for r in reranked) / TOP_K
+
+        gain = reranked_score - initial_score
+        total_precision_gain += gain
+
+        print(f"\n[{idx}/{len(LEGAL_RERANK_BENCHMARKS)}] {item['statute']}: {q}")
+        print(f"  Initial Top-{TOP_K} Relevance: {initial_score:.3f}")
+        print(f"  Reranked Top-{TOP_K} Relevance: {reranked_score:.3f} (Delta {gain:+.3f})")
+
+        print(f"  Top Chunk Post-Rerank: {reranked[0].get('source')} (Score: {reranked[0].get('rerank_score', 0):.4f})")
+
+    avg_gain = total_precision_gain / len(LEGAL_RERANK_BENCHMARKS)
+    print("\n" + "=" * 70)
+    print(f"AVERAGE RELEVANCE GAIN POST-RERANKING: {avg_gain:+.4f}")
+    print("=" * 70)
 
 
 if __name__ == "__main__":
